@@ -5,13 +5,14 @@
         <link rel="shortcut icon" href="./static/favicon.ico">
         <meta charset="utf-8">
         <script src="./data/reports.json"></script>
+        <script src="./data/country_codes.json"></script>
         <link rel="stylesheet" href="./static/nettests.css">
         <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
     </head>
     <body>
         <div class="container">
             <div class="row">
-                <span class="col-xs-12 map"></span>
+                <span class="col-xs-12" id="map"></span>
             </div>
             <div class="row">
                 <span class="col-xs-12 histogram"></span>
@@ -22,6 +23,8 @@
         </div>
         <script src="https://code.jquery.com/jquery-1.11.0.min.js"></script>
         <script src="//cdnjs.cloudflare.com/ajax/libs/d3/3.4.13/d3.js"></script>
+        <script src="http://d3js.org/topojson.v1.min.js"></script>
+        <script src="./static/datamaps.world.min.js"></script>
         <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
         <script src="./static/nettests.js"></script>
     </body>

@@ -28,7 +28,6 @@ function index(reports)
         }
     }
 
-    // Return an object with a property for each nettest
     return groups;
 }
 
@@ -41,7 +40,42 @@ function get_indexed_data(data)
 
 function draw_map(data)
 {
+    var map = new Datamap({
+        element: document.getElementById('map'),
+        height: 500,
+        fills: {
+            defaultFill: 'rgb(230,230,230)'
+        }
+    });
 
+    var maximum = 0;
+    for(country in data){
+        if(data.hasOwnProperty(country)){
+            maximum = data[country].length > maximum ? data[country].length : maximum;
+        }
+    }
+    var quantize = d3.scale.quantile().domain([0, maximum]).range(d3.range(9)),
+        color_updates = {},
+        colorbrewer = [
+            'rgb(248,251,255)',
+            'rgb(222,235,247)',
+            'rgb(198,219,239)',
+            'rgb(158,202,225)',
+            'rgb(107,174,214)',
+            'rgb(66,146,198)',
+            'rgb(33,113,181)',
+            'rgb(8,81,156)',
+            'rgb(8,48,107)',
+        ];
+
+    for(country in data){
+        if(data.hasOwnProperty(country)){
+            var cc = country_codes[country],
+                index = quantize(data[country].length);
+            color_updates[cc] = colorbrewer[index];
+        }
+    }
+    map.updateChoropleth(color_updates);
 }
 
 function draw_histogram(data)
@@ -175,8 +209,8 @@ function draw_timeline(data)
     var indexed = index(reports);
 
     draw_histogram(indexed['test_name']);
-    draw_map(indexed['probe_cc']);
     draw_timeline(indexed['start_time']);
+    draw_map(indexed['probe_cc']);
 
     function redraw(){
         // Use indexed
