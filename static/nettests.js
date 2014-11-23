@@ -1,9 +1,19 @@
 var Map = {
+    id: 'map',
+    onclick: function(country_code){
+        console.log(country_code);
+    },
     draw: function (data)
     {
+        var that = this;
         var map = new Datamap({
             element: document.getElementById('map'),
             height: 500,
+            done: function(datamap){
+                datamap.svg.selectAll('.datamaps-subunit').on('click', function(geography) {
+                    that.onclick(geography.id);
+                });
+            },
             fills: {
                 defaultFill: 'rgb(230,230,230)'
             }
@@ -37,70 +47,6 @@ var Map = {
             }
         }
         map.updateChoropleth(color_updates);
-    },
-}
-
-var Histogram = {
-    draw: function (data)
-    {
-        var margin = {top: 20, right: 20, bottom: 250, left: 40},
-            width = 800 - margin.left - margin.right,
-            height = 500 - margin.top - margin.bottom;
-
-        var processed_data = [];
-        for(nettest in data){
-            if(data.hasOwnProperty(nettest)){
-                processed_data.push({nettest: nettest, measurements: data[nettest].length})
-            }
-        }
-
-        var x = d3.scale.ordinal()
-                  .rangeRoundBands([0, width], .1)
-                  .domain(Object.keys(data));
-
-        var y = d3.scale.linear()
-                  .range([height, 0])
-                  .domain([0, d3.max(processed_data, function(d) { return d.measurements; })]);
-
-        var xAxis = d3.svg.axis()
-                      .scale(x)
-                      .orient("bottom");
-
-        var yAxis = d3.svg.axis()
-                      .scale(y)
-                      .orient("left");
-
-        var svg = d3.select(".histogram").append("svg")
-                    .attr("class", "center-block")
-                    .attr("width", width + margin.left + margin.right)
-                    .attr("height", height + margin.top + margin.bottom)
-                    .append("g")
-                    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
-
-        svg.append("g")
-           .attr("class", "x axis")
-           .attr("transform", "translate(0, " + height + ")")
-           .call(xAxis)
-           .selectAll("text")
-                .style("text-anchor", "end")
-                .attr("dx", "-.8em")
-                .attr("dy", ".15em")
-                .attr("transform", function(d){
-                    return "rotate(-65)";
-                });
-
-        svg.append("g")
-           .attr("class", "y axis")
-           .call(yAxis);
-
-        svg.selectAll(".bar")
-           .data(processed_data)
-           .enter().append("rect")
-           .attr("class", "bar")
-           .attr("x", function(d) { return x(d.nettest); })
-           .attr("width", x.rangeBand())
-           .attr("y", function(d) { return y(d.measurements); })
-           .attr("height", function(d) { return height - y(d.measurements); });
     },
 }
 
@@ -171,32 +117,103 @@ var Timeline = {
     },
 }
 
+var Histogram = {
+    id: 'histogram',
+    onclick: function(data, index)
+    {
+        console.log(d3.event, data, this);
+    },
+    draw: function (data)
+    {
+        var margin = {top: 20, right: 20, bottom: 250, left: 40},
+            width = 800 - margin.left - margin.right,
+            height = 500 - margin.top - margin.bottom;
+
+        var processed_data = [];
+        for(nettest in data){
+            if(data.hasOwnProperty(nettest)){
+                processed_data.push({nettest: nettest, measurements: data[nettest].length})
+            }
+        }
+
+        var x = d3.scale.ordinal()
+                  .rangeRoundBands([0, width], .1)
+                  .domain(Object.keys(data));
+
+        var y = d3.scale.linear()
+                  .range([height, 0])
+                  .domain([0, d3.max(processed_data, function(d) { return d.measurements; })]);
+
+        var xAxis = d3.svg.axis()
+                      .scale(x)
+                      .orient("bottom");
+
+        var yAxis = d3.svg.axis()
+                      .scale(y)
+                      .orient("left");
+
+        var svg = d3.select(".histogram").append("svg")
+                    .attr("class", "center-block")
+                    .attr("width", width + margin.left + margin.right)
+                    .attr("height", height + margin.top + margin.bottom)
+                    .append("g")
+                    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+        svg.append("g")
+           .attr("class", "x axis")
+           .attr("transform", "translate(0, " + height + ")")
+           .call(xAxis)
+           .selectAll("text")
+                .style("text-anchor", "end")
+                .attr("dx", "-.8em")
+                .attr("dy", ".15em")
+                .attr("transform", function(d){
+                    return "rotate(-65)";
+                });
+
+        svg.append("g")
+           .attr("class", "y axis")
+           .call(yAxis);
+
+        var that = this;
+        svg.selectAll(".bar")
+           .data(processed_data)
+           .enter().append("rect")
+           .on('click', function(data,index) { that.onclick(data, index); })
+           .attr("class", "bar")
+           .attr("x", function(d) { return x(d.nettest); })
+           .attr("width", x.rangeBand())
+           .attr("y", function(d) { return y(d.measurements); })
+           .attr("height", function(d) { return height - y(d.measurements); });
+    },
+}
+
 var MainController = {
-    init: function (){
-        this.indexed = this.index(reports),
+    init: function (reports){
+        this.index(reports),
         this.map = Object.create(Map);
         this.histogram = Object.create(Histogram);
         this.timeline = Object.create(Timeline);
 
-        this.histogram.draw(this.indexed['test_name']);
-        this.timeline.draw(this.indexed['start_time']);
-        this.map.draw(this.indexed['probe_cc']);
+        this.histogram.draw(this.data_indexed['test_name']);
+        this.timeline.draw(this.data_indexed['start_time']);
+        this.map.draw(this.data_indexed['probe_cc']);
     },
 
     // Group the array of reports given as input by its probe_cc and test_name field values.
     index: function (reports)
     {
-        var groups = {'probe_cc': {}, 'test_name': {}, 'start_time': {}},
-            len = reports.length,
-            keys = ['probe_cc', 'test_name'];
+        var len = reports.length,
+            keys = ['probe_cc', 'test_name'],
+            data_indexed = {'probe_cc': {}, 'test_name': {}, 'start_time': {}};
 
         for(var i = 0; i < len; i++){
             keys.forEach(function (key){
                 var val = reports[i][key];
-                if(Object.keys(groups[key]).indexOf(val) == -1){
-                    groups[key][val]= [];
+                if(Object.keys(data_indexed[key]).indexOf(val) == -1){
+                    data_indexed[key][val]= [];
                 }
-                groups[key][val].push(i);
+                data_indexed[key][val].push(i);
             });
         }
 
@@ -207,15 +224,15 @@ var MainController = {
             if(curr_day.toDateString() === last_day){
                 for_each_day.push(i);
             }else{
-                groups.start_time[last_day] = for_each_day;
+                data_indexed.start_time[last_day] = for_each_day;
                 for_each_day = [];
                 last_day = curr_day.toDateString();
             }
         }
 
-        return groups;
+        this.data_indexed = data_indexed;
     },
 }
 
 main_controller = Object.create(MainController);
-main_controller.init();
+main_controller.init(reports);
