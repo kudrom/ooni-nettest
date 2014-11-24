@@ -1,24 +1,56 @@
 var Map = {
     id: 'map',
-    onclick: function(country_code){
-        console.log(country_code);
-    },
-    draw: function (data)
-    {
+    selected: {},
+    removed: {},
+    color_selected: 'red',
+    color_removed: 'black',
+    color_default: 'rgb(230,230,230)',
+    init: function(command, data){
+        this.command = command;
+        this.initial_data = data;
         var that = this;
-        var map = new Datamap({
+        this.map = new Datamap({
             element: document.getElementById('map'),
             height: 500,
             done: function(datamap){
                 datamap.svg.selectAll('.datamaps-subunit').on('click', function(geography) {
-                    that.onclick(geography.id);
+                    that.command.method.call(that.command.object, that.id, window.event, geography.id);
                 });
             },
             fills: {
-                defaultFill: 'rgb(230,230,230)'
+                defaultFill: that.color_default,
             }
         });
-
+        this.draw(this.initial_data);
+    },
+    reset_countries: function(countries){
+        var reset = {};
+        for(country in countries){
+            if(countries.hasOwnProperty(country)){
+                reset[country] = this.color_default;
+            }
+        }
+        this.map.updateChoropleth(reset);
+        this.draw(this.initial_data);
+    },
+    select: function(country_code, exclusive){
+        if(exclusive){
+            this.reset_countries(this.selected);
+            this.selected = {};
+        }
+        this.selected[country_code] = this.color_selected;
+        this.map.updateChoropleth(this.selected);
+    },
+    remove: function(country_code, exclusive){
+        if(exclusive){
+            this.reset_countries(this.removed);
+            this.removed = {};
+        }
+        this.removed[country_code] = this.color_removed;
+        this.map.updateChoropleth(this.removed);
+    },
+    draw: function(data)
+    {
         var maximum = 0;
         for(country in data){
             if(data.hasOwnProperty(country)){
@@ -46,11 +78,19 @@ var Map = {
                 color_updates[cc] = colorbrewer[index];
             }
         }
-        map.updateChoropleth(color_updates);
+
+        this.map.updateChoropleth(color_updates);
     },
 }
 
 var Timeline = {
+    id: 'timeline',
+    init: function(command, data)
+    {
+        this.command = command;
+        this.initial_data = data;
+        this.draw(this.initial_data);
+    },
     draw: function (data)
     {
         var parseDate = d3.time.format("%a %b %d %Y").parse,
@@ -119,16 +159,105 @@ var Timeline = {
 
 var Histogram = {
     id: 'histogram',
-    onclick: function(data, index)
+    selected: [],
+    removed: [],
+    get_max_number_measurements: function(data)
     {
-        console.log(d3.event, data, this);
+        var maximum = 0;
+        for(nettest in data){
+            if(data.hasOwnProperty(nettest)){
+                maximum = data[nettest].length > maximum ? data[nettest].length : maximum;
+            }
+        }
+        return maximum;
+    },
+    update_nettests: function(nettests, css_class)
+    {
+        var len = nettests.length;
+        for(var i = 0; i < len; i++){
+            var dom_nettest = this.svg.select('.bar.' + nettests[i])[0][0];
+            dom_nettest.classList.toggle(css_class);
+        }
+    },
+    select: function(nettest, exclusive)
+    {
+        var redraw;
+        if(exclusive){
+            redraw = this.selected.slice(0);
+            redraw.push(nettest);
+            this.selected = [nettest];
+        }else{
+            redraw = [nettest];
+            this.selected.push(nettest);
+        }
+        this.update_nettests(redraw, 'selected');
+    },
+    remove: function(nettest, exclusive)
+    {
+        var redraw;
+        if(exclusive){
+            redraw = this.removed.slice(0);
+            redraw.push(nettest);
+            this.removed = [nettest];
+        }else{
+            redraw = [nettest];
+            this.removed.push(nettest);
+        }
+        this.update_nettests(redraw, 'removed');
+    },
+    init: function(command, data){
+        this.command = command;
+        this.initial_data = data;
+
+        var margin = {top: 20, right: 20, bottom: 250, left: 40};
+        this.width = 800 - margin.left - margin.right;
+        this.height = 500 - margin.top - margin.bottom;
+
+        this.x = d3.scale.ordinal()
+                         .rangeRoundBands([0, this.width], .1)
+                         .domain(Object.keys(data));
+
+        // TODO: This call is inefficient, maybe the processed_data should be an attribute?
+        var maximum = this.get_max_number_measurements(this.initial_data);
+        this.y = d3.scale.linear()
+                         .range([this.height, 0])
+                         .domain([0, maximum]);
+
+        var xAxis = d3.svg.axis()
+                      .scale(this.x)
+                      .orient("bottom");
+
+        var yAxis = d3.svg.axis()
+                      .scale(this.y)
+                      .orient("left");
+
+        this.svg = d3.select(".histogram").append("svg")
+                    .attr("class", "center-block")
+                    .attr("width", this.width + margin.left + margin.right)
+                    .attr("height", this.height + margin.top + margin.bottom)
+                    .append("g")
+                    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+        this.svg.append("g")
+                .attr("class", "x axis")
+                .attr("transform", "translate(0, " + this.height + ")")
+                .call(xAxis)
+                .selectAll("text")
+                     .style("text-anchor", "end")
+                     .attr("dx", "-.8em")
+                     .attr("dy", ".15em")
+                     .attr("transform", function(d){
+                         return "rotate(-65)";
+                     });
+
+        this.svg.append("g")
+                .attr("class", "y axis")
+                .call(yAxis);
+
+        this.draw(this.initial_data);
     },
     draw: function (data)
     {
-        var margin = {top: 20, right: 20, bottom: 250, left: 40},
-            width = 800 - margin.left - margin.right,
-            height = 500 - margin.top - margin.bottom;
-
         var processed_data = [];
         for(nettest in data){
             if(data.hasOwnProperty(nettest)){
@@ -136,70 +265,86 @@ var Histogram = {
             }
         }
 
-        var x = d3.scale.ordinal()
-                  .rangeRoundBands([0, width], .1)
-                  .domain(Object.keys(data));
-
-        var y = d3.scale.linear()
-                  .range([height, 0])
-                  .domain([0, d3.max(processed_data, function(d) { return d.measurements; })]);
-
-        var xAxis = d3.svg.axis()
-                      .scale(x)
-                      .orient("bottom");
-
-        var yAxis = d3.svg.axis()
-                      .scale(y)
-                      .orient("left");
-
-        var svg = d3.select(".histogram").append("svg")
-                    .attr("class", "center-block")
-                    .attr("width", width + margin.left + margin.right)
-                    .attr("height", height + margin.top + margin.bottom)
-                    .append("g")
-                    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
-
-        svg.append("g")
-           .attr("class", "x axis")
-           .attr("transform", "translate(0, " + height + ")")
-           .call(xAxis)
-           .selectAll("text")
-                .style("text-anchor", "end")
-                .attr("dx", "-.8em")
-                .attr("dy", ".15em")
-                .attr("transform", function(d){
-                    return "rotate(-65)";
-                });
-
-        svg.append("g")
-           .attr("class", "y axis")
-           .call(yAxis);
-
         var that = this;
-        svg.selectAll(".bar")
-           .data(processed_data)
-           .enter().append("rect")
-           .on('click', function(data,index) { that.onclick(data, index); })
-           .attr("class", "bar")
-           .attr("x", function(d) { return x(d.nettest); })
-           .attr("width", x.rangeBand())
-           .attr("y", function(d) { return y(d.measurements); })
-           .attr("height", function(d) { return height - y(d.measurements); });
+        this.svg.selectAll(".bar")
+                .data(processed_data)
+                .enter().append("rect")
+                .on('click', function(data, index){
+                    that.command.method.call(that.command.object, that.id, d3.event, data.nettest);
+                })
+                .attr("class", function(d) { return "bar " + d.nettest; })
+                .attr("x", function(d) { return that.x(d.nettest); })
+                .attr("width", this.x.rangeBand())
+                .attr("y", function(d) { return that.y(d.measurements); })
+                .attr("height", function(d) { return that.height - that.y(d.measurements);});
     },
 }
 
 var MainController = {
-    init: function (reports){
-        this.index(reports),
-        this.map = Object.create(Map);
-        this.histogram = Object.create(Histogram);
-        this.timeline = Object.create(Timeline);
-
-        this.histogram.draw(this.data_indexed['test_name']);
-        this.timeline.draw(this.data_indexed['start_time']);
-        this.map.draw(this.data_indexed['probe_cc']);
+    dispatcher: {
+        select: {},
+        remove: {},
+        compare: {}
     },
+    data_indexed: {},
+    init: function (reports){
+        this.index(reports);
 
+        this.map = Object.create(Map);
+        this.map.init({object: this, method: this.onclick}, this.data_indexed.probe_cc);
+
+        this.histogram = Object.create(Histogram);
+        this.histogram.init({object: this, method: this.onclick}, this.data_indexed.test_name);
+
+        this.timeline = Object.create(Timeline);
+        this.timeline.init({}, this.data_indexed.start_time);
+
+        this.setup_dispatcher();
+    },
+    setup_dispatcher: function(){
+        this.dispatcher.select[this.map.id] = this.select_map;
+        this.dispatcher.remove[this.map.id] = this.remove_map;
+        this.dispatcher.compare[this.map.id] = this.compare_map;
+        this.dispatcher.select[this.histogram.id] = this.select_histogram;
+        this.dispatcher.remove[this.histogram.id] = this.remove_histogram;
+        this.dispatcher.compare[this.histogram.id] = this.compare_histogram;
+    },
+    select_map: function(country){
+        this.map.select(country, true);
+    },
+    remove_map: function(country, exclusive){
+        this.map.remove(country, exclusive);
+    },
+    compare_map: function(country){
+        this.map.select(country, false);
+    },
+    select_histogram: function(nettest){
+        this.histogram.select(nettest, true);
+    },
+    remove_histogram: function(nettest, exclusive){
+        this.histogram.remove(nettest, exclusive);
+    },
+    compare_histogram: function(nettest){
+        this.histogram.select(nettest, false);
+    },
+    onclick: function(visualization, event, index)
+    {
+        var action_dispatcher;
+        var arg;
+        if(event.ctrlKey){
+            if(!event.shiftKey){
+                arg = true;
+            }
+            action_dispatcher = this.dispatcher.remove;
+        }else{
+            if(event.shiftKey){
+                action_dispatcher = this.dispatcher.compare;
+            }else{
+                action_dispatcher = this.dispatcher.select;
+            }
+        }
+        action_dispatcher[visualization].call(this, index, arg);
+    },
     // Group the array of reports given as input by its probe_cc and test_name field values.
     index: function (reports)
     {

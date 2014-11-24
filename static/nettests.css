@@ -6,8 +6,16 @@ body {
   fill: steelblue;
 }
 
+.bar.selected{
+    fill: red;
+}
+
+.bar.removed{
+    fill: black;
+}
+
 .bar:hover {
-  fill: brown;
+  fill: green;
 }
 
 .axis {
