@@ -1,10 +1,22 @@
 var Map = {
     id: 'map',
-    selected: {},
-    removed: {},
+    selected: [],
+    removed: [],
+    current_data: {},
     color_selected: 'red',
     color_removed: 'black',
     color_default: 'rgb(230,230,230)',
+    colorbrewer: [
+        'rgb(248,251,255)',
+        'rgb(222,235,247)',
+        'rgb(198,219,239)',
+        'rgb(158,202,225)',
+        'rgb(107,174,214)',
+        'rgb(66,146,198)',
+        'rgb(33,113,181)',
+        'rgb(8,81,156)',
+        'rgb(8,48,107)',
+    ],
     init: function(command, data){
         this.command = command;
         this.initial_data = data;
@@ -19,66 +31,98 @@ var Map = {
             },
             fills: {
                 defaultFill: that.color_default,
+            },
+            geographyConfig: {
+                highlightOnHover: false
             }
         });
         this.draw(this.initial_data);
     },
     reset_countries: function(countries){
         var reset = {};
-        for(country in countries){
-            if(countries.hasOwnProperty(country)){
-                reset[country] = this.color_default;
-            }
-        }
+        var that = this;
+        countries.forEach(function(country){
+            reset[country] = that.color_default;
+        });
         this.map.updateChoropleth(reset);
+    },
+    // TODO: add reset button
+    reset: function(){
+        this.reset_countries(this.selected);
+        this.selected = [];
+        this.reset_countries(this.removed);
+        this.removed = [];
         this.draw(this.initial_data);
     },
+    // TODO: Toggle state
     select: function(country_code, exclusive){
-        if(exclusive){
-            this.reset_countries(this.selected);
-            this.selected = {};
+        var reseted_countries = Object.keys(this.initial_data);
+        if(this.removed.length > 0){
+            reseted_countries = reseted_countries.concat(this.removed);
+            this.removed = [];
         }
-        this.selected[country_code] = this.color_selected;
-        this.map.updateChoropleth(this.selected);
+        if(exclusive){
+            reseted_countries = reseted_countries.concat(this.selected);
+            this.selected = [];
+        }
+        this.reset_countries(reseted_countries);
+        this.selected.push(country_code);
+        var color_updates = {},
+            color_selected = this.color_selected;
+        this.selected.forEach(function(country){
+            color_updates[country] = color_selected;
+        })
+        this.map.updateChoropleth(color_updates);
     },
+    // TODO: Toggle state
     remove: function(country_code, exclusive){
-        if(exclusive){
-            this.reset_countries(this.removed);
-            this.removed = {};
+        var reseted_countries = [];
+        if(this.selected.length > 0){
+            reseted_countries = reseted_countries.concat(this.selected);
+            this.selected = [];
         }
-        this.removed[country_code] = this.color_removed;
-        this.map.updateChoropleth(this.removed);
+        if(exclusive){
+            reseted_countries = reseted_countries.concat(this.removed);
+            this.removed = [];
+        }
+        this.reset_countries(reseted_countries);
+        this.removed.push(country_code);
+        this.draw(this.current_data);
     },
     draw: function(data)
     {
-        var maximum = 0;
-        for(country in data){
-            if(data.hasOwnProperty(country)){
-                maximum = data[country].length > maximum ? data[country].length : maximum;
-            }
-        }
-        var quantize = d3.scale.quantile().domain([0, maximum]).range(d3.range(9)),
-            color_updates = {},
-            colorbrewer = [
-                'rgb(248,251,255)',
-                'rgb(222,235,247)',
-                'rgb(198,219,239)',
-                'rgb(158,202,225)',
-                'rgb(107,174,214)',
-                'rgb(66,146,198)',
-                'rgb(33,113,181)',
-                'rgb(8,81,156)',
-                'rgb(8,48,107)',
-            ];
+        this.current_data = data;
 
-        for(country in data){
-            if(data.hasOwnProperty(country)){
-                var cc = country_codes[country],
-                    index = quantize(data[country].length);
-                color_updates[cc] = colorbrewer[index];
-            }
+        if(this.selected.length > 0){
+            return;
         }
 
+        var maximum = 0,
+            processed_data = {},
+            color_updates = {}
+            color_removed = this.color_removed;
+
+        this.removed.forEach(function (country){
+            color_updates[country] = color_removed;
+        });
+        for(country in data){
+            if(data.hasOwnProperty(country)){
+                if(this.removed.indexOf(country) === -1){
+                    console.log(country);
+                    processed_data[country] = data[country].length;
+                    maximum = data[country].length > maximum ? data[country].length : maximum;
+                }
+            }
+        }
+        var quantize = d3.scale.quantile().domain([0, maximum]).range(d3.range(9));
+
+        console.log(maximum, this.removed);
+        for(country in processed_data){
+            if(data.hasOwnProperty(country)){
+                var index = quantize(processed_data[country]);
+                color_updates[country] = this.colorbrewer[index];
+            }
+        }
         this.map.updateChoropleth(color_updates);
     },
 }
