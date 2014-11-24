@@ -108,7 +108,6 @@ var Map = {
         for(country in data){
             if(data.hasOwnProperty(country)){
                 if(this.removed.indexOf(country) === -1){
-                    console.log(country);
                     processed_data[country] = data[country].length;
                     maximum = data[country].length > maximum ? data[country].length : maximum;
                 }
@@ -116,7 +115,6 @@ var Map = {
         }
         var quantize = d3.scale.quantile().domain([0, maximum]).range(d3.range(9));
 
-        console.log(maximum, this.removed);
         for(country in processed_data){
             if(data.hasOwnProperty(country)){
                 var index = quantize(processed_data[country]);
