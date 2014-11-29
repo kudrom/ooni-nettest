@@ -131,6 +131,18 @@ var Timeline = {
     {
         this.command = command;
         this.initial_data = data;
+
+        var margin = {top: 20, right: 20, bottom: 100, left: 50};
+        this.width = 960 - margin.left - margin.right;
+        this.height = 500 - margin.top - margin.bottom;
+
+        this.svg = d3.select(".timeline").append("svg")
+                      .attr("class", "center-block")
+                      .attr("width", this.width + margin.left + margin.right)
+                      .attr("height", this.height + margin.top + margin.bottom)
+                    .append("g")
+                      .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
         this.draw(this.initial_data);
     },
     draw: function (data)
@@ -143,16 +155,15 @@ var Timeline = {
             }
         }
 
-        var margin = {top: 20, right: 20, bottom: 100, left: 50},
-            width = 960 - margin.left - margin.right,
-            height = 500 - margin.top - margin.bottom;
+        this.svg.selectAll('g').remove();
+        this.svg.selectAll('path').remove();
 
         var x = d3.time.scale()
-                  .range([0, width])
+                  .range([0, this.width])
                   .domain(d3.extent(processed_data, function(d) { return d.start_time; }));
 
         var y = d3.scale.linear()
-                  .range([height, 0])
+                  .range([this.height, 0])
                   .domain([0, d3.max(processed_data, function(d) { return d.number; })]);
 
         var xAxis = d3.svg.axis()
@@ -166,36 +177,29 @@ var Timeline = {
 
         var area = d3.svg.area()
                      .x(function(d) { return x(d.start_time); })
-                     .y0(height)
+                     .y0(this.height)
                      .y1(function(d) { return y(d.number); });
 
-        var svg = d3.select(".timeline").append("svg")
-                    .attr("class", "center-block")
-                    .attr("width", width + margin.left + margin.right)
-                    .attr("height", height + margin.top + margin.bottom)
-                  .append("g")
-                    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+        this.svg.append("path")
+            .datum(processed_data)
+            .attr("class", "area")
+            .attr("d", area);
 
-          svg.append("path")
-              .datum(processed_data)
-              .attr("class", "area")
-              .attr("d", area);
+        this.svg.append("g")
+            .attr("class", "x axis")
+            .attr("transform", "translate(0," + this.height + ")")
+            .call(xAxis)
+            .selectAll("text")
+                 .style("text-anchor", "end")
+                 .attr("dx", "-.8em")
+                 .attr("dy", ".15em")
+                 .attr("transform", function(d){
+                     return "rotate(-65)";
+                 });
 
-          svg.append("g")
-              .attr("class", "x axis")
-              .attr("transform", "translate(0," + height + ")")
-              .call(xAxis)
-              .selectAll("text")
-                   .style("text-anchor", "end")
-                   .attr("dx", "-.8em")
-                   .attr("dy", ".15em")
-                   .attr("transform", function(d){
-                       return "rotate(-65)";
-                   });
-
-          svg.append("g")
-              .attr("class", "y axis")
-              .call(yAxis);
+        this.svg.append("g")
+            .attr("class", "y axis")
+            .call(yAxis);
     },
 }
 
@@ -275,6 +279,10 @@ var Histogram = {
     },
     draw: function (data)
     {
+        if(this.selected.length > 0){
+            return
+        }
+
         var processed_data = [],
             maximum = 0;
         for(nettest in data){
