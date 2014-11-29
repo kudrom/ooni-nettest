@@ -46,7 +46,6 @@ var Map = {
         });
         this.map.updateChoropleth(reset);
     },
-    // TODO: add reset button
     reset: function(){
         this.reset_countries(this.selected);
         this.selected = [];
@@ -228,6 +227,16 @@ var Histogram = {
 
         this.draw(this.initial_data);
     },
+    reset: function(){
+        if(this.selected.length > 0){
+            this.update_nettests(Object.keys(this.initial_data), 'unselected');
+            this.update_nettests(this.selected, 'selected');
+            this.selected = [];
+        }
+        this.update_nettests(this.removed, 'removed');
+        this.removed = [];
+        this.draw(this.initial_data);
+    },
     update_nettests: function(nettests, css_class)
     {
         var len = nettests.length;
@@ -360,6 +369,7 @@ var MainController = {
         this.timeline.init({}, this.data_indexed.start_time);
 
         this.setup_dispatcher();
+        this.setup_reset_buttons();
     },
     setup_dispatcher: function(){
         this.dispatcher.select[this.map.id] = this.select_map;
@@ -368,6 +378,15 @@ var MainController = {
         this.dispatcher.select[this.histogram.id] = this.select_histogram;
         this.dispatcher.remove[this.histogram.id] = this.remove_histogram;
         this.dispatcher.compare[this.histogram.id] = this.compare_histogram;
+    },
+    setup_reset_buttons: function(){
+        var that = this;
+        $('#map + .reset').click(function(){
+            that.map.reset();
+        });
+        $('.histogram + .reset').click(function(){
+            that.histogram.reset();
+        });
     },
     select_map: function(country){
         this.map.select(country, true);
