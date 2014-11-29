@@ -203,15 +203,26 @@ var Histogram = {
     id: 'histogram',
     selected: [],
     removed: [],
-    get_max_number_measurements: function(data)
-    {
-        var maximum = 0;
-        for(nettest in data){
-            if(data.hasOwnProperty(nettest)){
-                maximum = data[nettest].length > maximum ? data[nettest].length : maximum;
-            }
-        }
-        return maximum;
+    init: function(command, data){
+        this.command = command;
+        this.initial_data = data;
+
+        var margin = {top: 20, right: 20, bottom: 250, left: 40};
+        this.width = 800 - margin.left - margin.right;
+        this.height = 500 - margin.top - margin.bottom;
+
+        this.svg = d3.select(".histogram").append("svg")
+                    .attr("class", "center-block")
+                    .attr("width", this.width + margin.left + margin.right)
+                    .attr("height", this.height + margin.top + margin.bottom)
+                    .append("g")
+                    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+        this.x = d3.scale.ordinal()
+                         .rangeRoundBands([0, this.width], .1)
+                         .domain(Object.keys(data));
+
+        this.draw(this.initial_data);
     },
     update_nettests: function(nettests, css_class)
     {
@@ -247,38 +258,30 @@ var Histogram = {
         }
         this.update_nettests(redraw, 'removed');
     },
-    init: function(command, data){
-        this.command = command;
-        this.initial_data = data;
+    draw: function (data)
+    {
+        var processed_data = [],
+            maximum = 0;
+        for(nettest in data){
+            if(data.hasOwnProperty(nettest)){
+                processed_data.push({nettest: nettest, measurements: data[nettest].length})
+                maximum = data[nettest].length > maximum ? data[nettest].length : maximum;
+            }
+        }
 
-        var margin = {top: 20, right: 20, bottom: 250, left: 40};
-        this.width = 800 - margin.left - margin.right;
-        this.height = 500 - margin.top - margin.bottom;
-
-        this.x = d3.scale.ordinal()
-                         .rangeRoundBands([0, this.width], .1)
-                         .domain(Object.keys(data));
-
-        // TODO: This call is inefficient, maybe the processed_data should be an attribute?
-        var maximum = this.get_max_number_measurements(this.initial_data);
-        this.y = d3.scale.linear()
-                         .range([this.height, 0])
-                         .domain([0, maximum]);
+        this.svg.select('g').remove();
 
         var xAxis = d3.svg.axis()
                       .scale(this.x)
                       .orient("bottom");
 
+        this.y = d3.scale.linear()
+                         .range([this.height, 0])
+                         .domain([0, maximum]);
+
         var yAxis = d3.svg.axis()
                       .scale(this.y)
                       .orient("left");
-
-        this.svg = d3.select(".histogram").append("svg")
-                    .attr("class", "center-block")
-                    .attr("width", this.width + margin.left + margin.right)
-                    .attr("height", this.height + margin.top + margin.bottom)
-                    .append("g")
-                    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
         this.svg.append("g")
                 .attr("class", "x axis")
@@ -295,17 +298,6 @@ var Histogram = {
         this.svg.append("g")
                 .attr("class", "y axis")
                 .call(yAxis);
-
-        this.draw(this.initial_data);
-    },
-    draw: function (data)
-    {
-        var processed_data = [];
-        for(nettest in data){
-            if(data.hasOwnProperty(nettest)){
-                processed_data.push({nettest: nettest, measurements: data[nettest].length})
-            }
-        }
 
         var that = this;
         this.svg.selectAll(".bar")
@@ -387,7 +379,8 @@ var MainController = {
         }
         action_dispatcher[visualization].call(this, index, arg);
     },
-    // Group the array of reports given as input by its probe_cc and test_name field values.
+
+    // Groups the array of reports given as input by its probe_cc and test_name field values.
     index: function (reports)
     {
         var len = reports.length,
