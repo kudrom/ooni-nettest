@@ -219,8 +219,8 @@ var Histogram = {
                     .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
         this.x = d3.scale.ordinal()
-                         .rangeRoundBands([0, this.width], .1)
-                         .domain(Object.keys(data));
+                         .domain(Object.keys(data))
+                         .rangeRoundBands([0, this.width], .1);
 
         this.draw(this.initial_data);
     },
@@ -232,8 +232,21 @@ var Histogram = {
             dom_nettest.classList.toggle(css_class);
         }
     },
+    unselect_nettests: function(){
+        var nettests = Object.keys(this.initial_data),
+            len = nettests.length;
+        for(var i = 0; i < len; i++){
+            var dom_nettest = this.svg.select('.bar.' + nettests[i])[0][0];
+            dom_nettest.classList.add('unselected');
+        }
+    },
     select: function(nettest, exclusive)
     {
+        if(this.selected.length == 0){
+            this.update_nettests(Object.keys(this.initial_data), 'unselected');
+            this.update_nettests(this.removed, 'removed');
+            this.removed = [];
+        }
         var redraw;
         if(exclusive){
             redraw = this.selected.slice(0);
@@ -247,16 +260,18 @@ var Histogram = {
     },
     remove: function(nettest, exclusive)
     {
-        var redraw;
+        if(this.selected.length > 0){
+            this.update_nettests(Object.keys(this.initial_data), 'unselected');
+            this.update_nettests(this.selected, 'selected');
+            this.selected = [];
+        }
         if(exclusive){
-            redraw = this.removed.slice(0);
-            redraw.push(nettest);
             this.removed = [nettest];
         }else{
-            redraw = [nettest];
             this.removed.push(nettest);
         }
-        this.update_nettests(redraw, 'removed');
+        this.draw(this.initial_data);
+        this.update_nettests(this.removed, 'removed');
     },
     draw: function (data)
     {
@@ -265,19 +280,22 @@ var Histogram = {
         for(nettest in data){
             if(data.hasOwnProperty(nettest)){
                 processed_data.push({nettest: nettest, measurements: data[nettest].length})
-                maximum = data[nettest].length > maximum ? data[nettest].length : maximum;
+                if(this.removed.indexOf(nettest) == -1){
+                    maximum = data[nettest].length > maximum ? data[nettest].length : maximum;
+                }
             }
         }
 
-        this.svg.select('g').remove();
+        this.svg.selectAll('g').remove();
+        this.svg.selectAll('rect').remove();
 
         var xAxis = d3.svg.axis()
                       .scale(this.x)
                       .orient("bottom");
 
         this.y = d3.scale.linear()
-                         .range([this.height, 0])
-                         .domain([0, maximum]);
+                         .domain([0, maximum])
+                         .range([this.height, 0]);
 
         var yAxis = d3.svg.axis()
                       .scale(this.y)

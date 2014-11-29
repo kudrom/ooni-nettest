@@ -6,6 +6,11 @@ body {
   fill: steelblue;
 }
 
+/* .unselected must always be above .selected and .removed */
+.bar.unselected{
+    fill: grey;
+}
+
 .bar.selected{
     fill: red;
 }
