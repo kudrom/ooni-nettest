@@ -160,17 +160,18 @@ var Timeline = {
                 processed_data.push({start_time: parseDate(day), number: data[day].length});
             }
         }
+        processed_data.sort(function(a,b) { return b.start_time - a.start_time});
 
         this.svg.selectAll('g').remove();
         this.svg.selectAll('path').remove();
 
         var x = d3.time.scale()
-                  .range([0, this.width])
-                  .domain(d3.extent(processed_data, function(d) { return d.start_time; }));
+                  .domain(d3.extent(processed_data, function(d) { return d.start_time; }))
+                  .range([0, this.width]);
 
         var y = d3.scale.linear()
-                  .range([this.height, 0])
-                  .domain([0, d3.max(processed_data, function(d) { return d.number; })]);
+                  .domain([0, d3.max(processed_data, function(d) { return d.number; })])
+                  .range([this.height, 0]);
 
         var xAxis = d3.svg.axis()
                       .scale(x)
