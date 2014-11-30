@@ -2,7 +2,9 @@ var Map = {
     id: 'map',
     selected: [],
     removed: [],
+    initial_data: {},
     current_data: {},
+    // TODO: the colors should be fetched from css
     color_selected: 'red',
     color_removed: 'black',
     color_default: 'rgb(230,230,230)',
@@ -90,11 +92,11 @@ var Map = {
     },
     draw: function(data)
     {
-        this.current_data = data;
-
         if(this.selected.length > 0){
             return;
         }
+
+        this.current_data = data;
 
         var maximum = 0,
             processed_data = {},
@@ -144,6 +146,9 @@ var Timeline = {
 
         this.draw(this.initial_data);
     },
+    reset: function(){
+        this.draw(this.initial_data);
+    },
     draw: function (data)
     {
         var parseDate = d3.time.format("%a %b %d %Y").parse,
@@ -167,7 +172,6 @@ var Timeline = {
 
         var xAxis = d3.svg.axis()
                       .scale(x)
-                      .ticks(d3.time.month, 1)
                       .orient("bottom");
 
         var yAxis = d3.svg.axis()
@@ -206,6 +210,8 @@ var Histogram = {
     id: 'histogram',
     selected: [],
     removed: [],
+    current_data: {},
+    initial_data: {},
     init: function(command, data){
         this.command = command;
         this.initial_data = data;
@@ -292,6 +298,8 @@ var Histogram = {
             return
         }
 
+        this.current_data = data;
+
         var processed_data = [],
             maximum = 0;
         for(nettest in data){
@@ -355,18 +363,19 @@ var MainController = {
         remove: {},
         compare: {}
     },
-    data_indexed: {},
+    initial_reports: [],
     init: function (reports){
-        this.index(reports);
+        this.initial_reports = reports;
+        var data_indexed = this.index(reports);
 
         this.map = Object.create(Map);
-        this.map.init({object: this, method: this.onclick}, this.data_indexed.probe_cc);
+        this.map.init({object: this, method: this.onclick}, data_indexed.probe_cc);
 
         this.histogram = Object.create(Histogram);
-        this.histogram.init({object: this, method: this.onclick}, this.data_indexed.test_name);
+        this.histogram.init({object: this, method: this.onclick}, data_indexed.test_name);
 
         this.timeline = Object.create(Timeline);
-        this.timeline.init({}, this.data_indexed.start_time);
+        this.timeline.init({}, data_indexed.start_time);
 
         this.setup_dispatcher();
         this.setup_reset_buttons();
@@ -382,17 +391,39 @@ var MainController = {
     setup_reset_buttons: function(){
         var that = this;
         $('#map + .reset').click(function(){
+            if(that.map.selected.length > 0 || that.map.removed.length > 0){
+                that.timeline.reset();
+                that.histogram.reset();
+            }
             that.map.reset();
         });
         $('.histogram + .reset').click(function(){
+            if(that.histogram.selected.length > 0 || that.histogram.removed.length > 0){
+                that.timeline.reset();
+                that.map.reset();
+            }
             that.histogram.reset();
         });
     },
     select_map: function(country){
         this.map.select(country, true);
+        var new_reports = this.select_reports(this.map.current_data[country]),
+            new_data = this.index(new_reports);
+        this.histogram.draw(new_data.test_name);
+        this.timeline.draw(new_data.start_time);
     },
     remove_map: function(country, exclusive){
         this.map.remove(country, exclusive);
+        var new_indexed_reports = [];
+        for(cc in this.map.current_data){
+            if(this.map.removed.indexOf(cc) === -1){
+                new_indexed_reports = new_indexed_reports.concat(this.map.current_data[cc]);
+            }
+        }
+        var new_reports = this.select_reports(new_indexed_reports),
+            new_data= this.index(new_reports);
+        this.histogram.draw(new_data.test_name);
+        this.timeline.draw(new_data.start_time);
     },
     compare_map: function(country){
         this.map.select(country, false);
@@ -425,37 +456,54 @@ var MainController = {
         action_dispatcher[visualization].call(this, index, arg);
     },
 
+    select_reports: function(indexed_reports)
+    {
+        if(indexed_reports === undefined){
+            return [];
+        }
+
+        var len = indexed_reports.length,
+            reports = [];
+
+        for(var i = 0; i < len; i++){
+            reports.push(this.initial_reports[indexed_reports[i]]);
+        }
+
+        return reports;
+    },
     // Groups the array of reports given as input by its probe_cc and test_name field values.
-    index: function (reports)
+    index: function(reports)
     {
         var len = reports.length,
             keys = ['probe_cc', 'test_name'],
             data_indexed = {'probe_cc': {}, 'test_name': {}, 'start_time': {}};
 
-        for(var i = 0; i < len; i++){
-            keys.forEach(function (key){
-                var val = reports[i][key];
-                if(Object.keys(data_indexed[key]).indexOf(val) == -1){
-                    data_indexed[key][val]= [];
-                }
-                data_indexed[key][val].push(i);
-            });
-        }
+        if(len !== 0){
+            for(var i = 0; i < len; i++){
+                keys.forEach(function (key){
+                    var val = reports[i][key];
+                    if(Object.keys(data_indexed[key]).indexOf(val) == -1){
+                        data_indexed[key][val]= [];
+                    }
+                    data_indexed[key][val].push(i);
+                });
+            }
 
-        var last_day = (new Date(reports[0].start_time*1000)).toDateString(),
-            for_each_day = [];
-        for(var i = 1; i < len; i++){
-            var curr_day = new Date(reports[i].start_time*1000);
-            if(curr_day.toDateString() === last_day){
-                for_each_day.push(i);
-            }else{
-                data_indexed.start_time[last_day] = for_each_day;
+            var last_day = (new Date(reports[0].start_time*1000)).toDateString(),
                 for_each_day = [];
-                last_day = curr_day.toDateString();
+            for(var i = 1; i < len; i++){
+                var curr_day = new Date(reports[i].start_time*1000);
+                if(curr_day.toDateString() === last_day){
+                    for_each_day.push(i);
+                }else{
+                    data_indexed.start_time[last_day] = for_each_day;
+                    for_each_day = [];
+                    last_day = curr_day.toDateString();
+                }
             }
         }
 
-        this.data_indexed = data_indexed;
+        return data_indexed;
     },
 }
 
