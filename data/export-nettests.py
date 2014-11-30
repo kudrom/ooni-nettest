@@ -8,10 +8,13 @@ if __name__ == "__main__":
     with open('country_codes.json') as f:
         country_codes = json.load(f)
     sanitised_reports = []
+    i = 0
     for report in reports:
         if report['probe_cc'] != u'ZZ':
             report['probe_cc'] = country_codes[report['probe_cc']]
             report['test_name'] = '_'.join(report['test_name'].split(' '))
+            report['id'] = i
+            i += 1
             sanitised_reports.append(report)
     with open('reports.json', 'w') as f:
         f.write('var reports = ')

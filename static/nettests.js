@@ -2,7 +2,9 @@ var Map = {
     id: 'map',
     selected: [],
     removed: [],
+    // Both initial and current data must never be changed, they are used by the MainController
     initial_data: {},
+    // Current data only changes when another visualization draws into this one
     current_data: {},
     // TODO: the colors should be fetched from css
     color_selected: 'red',
@@ -485,22 +487,23 @@ var MainController = {
                     if(Object.keys(data_indexed[key]).indexOf(val) == -1){
                         data_indexed[key][val]= [];
                     }
-                    data_indexed[key][val].push(i);
+                    data_indexed[key][val].push(reports[i].id);
                 });
             }
 
             var last_day = (new Date(reports[0].start_time*1000)).toDateString(),
-                for_each_day = [];
+                for_each_day = [reports[0].id];
             for(var i = 1; i < len; i++){
                 var curr_day = new Date(reports[i].start_time*1000);
                 if(curr_day.toDateString() === last_day){
-                    for_each_day.push(i);
+                    for_each_day.push(reports[i].id);
                 }else{
                     data_indexed.start_time[last_day] = for_each_day;
-                    for_each_day = [];
+                    for_each_day = [reports[i].id];
                     last_day = curr_day.toDateString();
                 }
             }
+            data_indexed.start_time[last_day] = for_each_day;
         }
 
         return data_indexed;
