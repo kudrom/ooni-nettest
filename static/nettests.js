@@ -42,6 +42,9 @@ var Map = {
         });
         this.draw(this.initial_data);
     },
+    is_modified: function(){
+        return this.selected.length > 0 || this.removed.length > 0;
+    },
     reset_countries: function(countries){
         var reset = {};
         var that = this;
@@ -99,6 +102,7 @@ var Map = {
         }
 
         this.current_data = data;
+        this.reset_countries(Object.keys(this.initial_data));
 
         var maximum = 0,
             processed_data = {},
@@ -236,6 +240,9 @@ var Histogram = {
 
         this.draw(this.initial_data);
     },
+    is_modified: function(){
+        return this.selected.length > 0 || this.removed.length > 0;
+    },
     reset: function(){
         if(this.selected.length > 0){
             this.update_nettests(Object.keys(this.initial_data), 'unselected');
@@ -251,15 +258,9 @@ var Histogram = {
         var len = nettests.length;
         for(var i = 0; i < len; i++){
             var dom_nettest = this.svg.select('.bar.' + nettests[i])[0][0];
-            dom_nettest.classList.toggle(css_class);
-        }
-    },
-    unselect_nettests: function(){
-        var nettests = Object.keys(this.initial_data),
-            len = nettests.length;
-        for(var i = 0; i < len; i++){
-            var dom_nettest = this.svg.select('.bar.' + nettests[i])[0][0];
-            dom_nettest.classList.add('unselected');
+            if(dom_nettest !== null){
+                dom_nettest.classList.toggle(css_class);
+            }
         }
     },
     select: function(nettest, exclusive)
@@ -292,7 +293,7 @@ var Histogram = {
         }else{
             this.removed.push(nettest);
         }
-        this.draw(this.initial_data);
+        this.draw(this.current_data);
         this.update_nettests(this.removed, 'removed');
     },
     draw: function (data)
@@ -367,6 +368,7 @@ var MainController = {
         compare: {}
     },
     initial_reports: [],
+    first_modified: null,
     init: function (reports){
         this.initial_reports = reports;
         var data_indexed = this.index(reports);
@@ -384,6 +386,7 @@ var MainController = {
         this.setup_reset_buttons();
     },
     setup_dispatcher: function(){
+        // TODO: all of the dispatcher stuff needs a refactoring
         this.dispatcher.select[this.map.id] = this.select_map;
         this.dispatcher.remove[this.map.id] = this.remove_map;
         this.dispatcher.compare[this.map.id] = this.compare_map;
@@ -392,6 +395,7 @@ var MainController = {
         this.dispatcher.compare[this.histogram.id] = this.compare_histogram;
     },
     setup_reset_buttons: function(){
+        // TODO: fix the reset buttons
         var that = this;
         $('#map + .reset').click(function(){
             if(that.map.selected.length > 0 || that.map.removed.length > 0){
@@ -409,6 +413,13 @@ var MainController = {
         });
     },
     select_map: function(country){
+        // TODO: all the interactions need a refactoring
+        if(this.first_modified === this.map.id && this.histogram.is_modified()){
+            this.histogram.reset();
+        }
+        if(!this.histogram.is_modified()){
+            this.first_modified = this.map.id;
+        }
         this.map.select(country, true);
         var new_reports = this.select_reports(this.map.current_data[country]),
             new_data = this.index(new_reports);
@@ -416,6 +427,12 @@ var MainController = {
         this.timeline.draw(new_data.start_time);
     },
     remove_map: function(country, exclusive){
+        if(this.first_modified === this.map.id && this.histogram.is_modified()){
+            this.histogram.reset();
+        }
+        if(!this.histogram.is_modified()){
+            this.first_modified = this.map.id;
+        }
         this.map.remove(country, exclusive);
         var new_indexed_reports = [];
         for(cc in this.map.current_data){
@@ -432,10 +449,36 @@ var MainController = {
         this.map.select(country, false);
     },
     select_histogram: function(nettest){
+        if(this.first_modified === this.histogram.id && this.map.is_modified()){
+            this.map.reset();
+        }
+        if(!this.map.is_modified()){
+            this.first_modified = this.histogram.id;
+        }
         this.histogram.select(nettest, true);
+        var new_reports = this.select_reports(this.histogram.current_data[nettest]),
+            new_data = this.index(new_reports);
+        this.map.draw(new_data.probe_cc);
+        this.timeline.draw(new_data.start_time);
     },
     remove_histogram: function(nettest, exclusive){
+        if(this.first_modified === this.histogram.id && this.map.is_modified()){
+            this.map.reset();
+        }
+        if(!this.map.is_modified()){
+            this.first_modified = this.histogram.id;
+        }
         this.histogram.remove(nettest, exclusive);
+        var new_indexed_reports = [];
+        for(nettest in this.histogram.current_data){
+            if(this.histogram.removed.indexOf(nettest) === -1){
+                new_indexed_reports = new_indexed_reports.concat(this.histogram.current_data[nettest]);
+            }
+        }
+        var new_reports = this.select_reports(new_indexed_reports),
+            new_data = this.index(new_reports);
+        this.map.draw(new_data.probe_cc);
+        this.timeline.draw(new_data.start_time);
     },
     compare_histogram: function(nettest){
         this.histogram.select(nettest, false);
