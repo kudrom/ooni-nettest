@@ -4,12 +4,17 @@
         <title>Nettest visualization</title>
         <link rel="shortcut icon" href="./static/favicon.ico">
         <meta charset="utf-8">
-        <script src="./data/reports.json"></script>
+        <script type="text/javascript" src="./data/reports.json"></script>
         <link rel="stylesheet" href="./static/nettests.css">
         <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
     </head>
     <body>
         <div class="container">
+            <div class="row">
+                <div class="col-xs-23 bg-danger" style="border-radius: 5px; padding: 15px; margin-top: 20px;">
+                    Currently the visualization doesn't work for Firefox
+                </div>
+            </div>
             <div class="row">
                 <div class="col-xs-12 bg-info help">
                     <p>Only the map and the histogram can be interacted with</p>
@@ -19,6 +24,7 @@
                     <p>You can do the same previous three actions with any country in the map and any nettest in the histogram.</p>
                     <p>You should click the Reset button in the top right corner when you want to do another selection or removal, don't stack the selections.</p>
                 </div>
+            </div>
             <div class="row">
                 <span class="col-xs-12" id="map"></span>
             </div>
@@ -31,11 +37,11 @@
             <div class="ribbon">Alfa</div>
             <button class="reset" type="button">Reset</input>
         </div>
-        <script src="https://code.jquery.com/jquery-1.11.0.min.js"></script>
-        <script src="//cdnjs.cloudflare.com/ajax/libs/d3/3.4.13/d3.js"></script>
-        <script src="http://d3js.org/topojson.v1.min.js"></script>
-        <script src="./static/datamaps.world.min.js"></script>
-        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
-        <script src="./static/nettests.js"></script>
+        <script type="text/javascript" src="https://code.jquery.com/jquery-1.11.0.min.js"></script>
+        <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/d3/3.4.13/d3.js"></script>
+        <script type="text/javascript" src="http://d3js.org/topojson.v1.min.js"></script>
+        <script type="text/javascript" src="./static/datamaps.world.min.js"></script>
+        <script type="text/javascript" src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+        <script type="text/javascript" src="./static/nettests.js"></script>
     </body>
 </html>
