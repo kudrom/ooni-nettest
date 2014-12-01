@@ -395,21 +395,11 @@ var MainController = {
         this.dispatcher.compare[this.histogram.id] = this.compare_histogram;
     },
     setup_reset_buttons: function(){
-        // TODO: fix the reset buttons
         var that = this;
-        $('#map + .reset').click(function(){
-            if(that.map.selected.length > 0 || that.map.removed.length > 0){
-                that.timeline.reset();
-                that.histogram.reset();
-            }
-            that.map.reset();
-        });
-        $('.histogram + .reset').click(function(){
-            if(that.histogram.selected.length > 0 || that.histogram.removed.length > 0){
-                that.timeline.reset();
-                that.map.reset();
-            }
+        $('.reset').click(function(){
+            that.timeline.reset();
             that.histogram.reset();
+            that.map.reset();
         });
     },
     select_map: function(country){
